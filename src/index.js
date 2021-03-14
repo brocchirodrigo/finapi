@@ -10,7 +10,7 @@ const app = express();
  * statement []
  */
 
-const costumers = [];
+const customers = [];
 
 // Middleware
 
@@ -19,13 +19,13 @@ app.use(express.json());
 function verifyIfExistsAccountCPF(request, response, next) {
   const { cpf } = request.headers;
   
-  const costumer = costumers.find(costumer => costumer.cpf === cpf);
+  const customer = customers.find(customer => customer.cpf === cpf);
 
-  if (!costumer) {
-    return response.status(400).json({ error: 'Cold not find the costumer' })
+  if (!customer) {
+    return response.status(400).json({ error: 'Cold not find the customer' })
   }
 
-  request.costumer = costumer;
+  request.customer = customer;
 
   return next();
 }
@@ -60,13 +60,13 @@ function getBalance(statement) {
 app.post('/account', (request, response) => {
   const { name, cpf } = request.body;
 
-  const costumerAlreadyExists = costumers.some((costumer) => costumer.cpf === cpf);
+  const customerAlreadyExists = customers.some((customer) => customer.cpf === cpf);
 
-  if (costumerAlreadyExists) {
-    return response.status(400).json({ error: 'Costumer already exists' })
+  if (customerAlreadyExists) {
+    return response.status(400).json({ error: 'customer already exists' })
   }
 
-  costumers.push({
+  customers.push({
     cpf,
     name,
     id: uuidv4(),
@@ -80,15 +80,15 @@ app.post('/account', (request, response) => {
 app.use(verifyIfExistsAccountCPF);
 
 app.get('/statement', (request, response) => {
-  const { costumer } = request;
+  const { customer } = request;
 
-  const balance = getBalance(costumer.statement); 
+  const balance = getBalance(customer.statement); 
   
-  return response.json({ statement: costumer.statement, balance}) 
+  return response.json({ statement: customer.statement, balance}) 
 });
 
 app.post('/deposit', (request, response) => {
-  const { costumer } = request;
+  const { customer } = request;
   const { description, amount } = request.body;
 
   const statementOperation = {
@@ -98,16 +98,16 @@ app.post('/deposit', (request, response) => {
     type: "credit"
   };
 
-  costumer.statement.push(statementOperation);
+  customer.statement.push(statementOperation);
 
   return response.status(201).json({ success: 'Deposit confirme in the date' })
 })
 
 app.post('/withdraw', (request, response) => {
-  const { costumer } = request;
+  const { customer } = request;
   const { description, amount } = request.body;
 
-  const balance = getBalance(costumer.statement);
+  const balance = getBalance(customer.statement);
 
   if(balance.total < amount) {
     return response.status(400).json({ erro: 'Insufficient funds!' })
@@ -120,18 +120,18 @@ app.post('/withdraw', (request, response) => {
     type: "debit"
   };
 
-  costumer.statement.push(statementOperation);
+  customer.statement.push(statementOperation);
 
   return response.status(201).json({ success: 'Withdraw confirme in the date' })
 })
 
 app.get('/statement/date', (request, response) => {
-  const { costumer } = request;
+  const { customer } = request;
   const { date } = request.query;
 
   const dateFormat = new Date(date + ' 00:00');
 
-  const statement = costumer.statement.filter(
+  const statement = customer.statement.filter(
     (statement) => 
     statement.created_at.toDateString() === new Date(dateFormat).toDateString())
 
@@ -139,6 +139,37 @@ app.get('/statement/date', (request, response) => {
   
   return response.json({ dateStatement: date, statement, balance }) 
 });
+
+app.put('/account', (request, response) => {
+  const { name } = request.body;
+  const { customer } = request;
+
+  customer.name = name
+
+  return response.status(201).json({ name: customer.name })
+})
+
+app.get('/account', (request, response) => {
+  const { customer } = request;
+  
+  return response.json(customer);
+})
+
+app.delete('/account', (request, response) => {
+  const { customer } = request;
+
+  customers.splice(customer, 1);
+
+  return response.status(204).send();
+})
+
+app.get('/balance', (request, response) => {
+  const { customer } = request;
+
+  const balance = getBalance(customer.statement)
+
+  return response.status(200).json(balance)
+})
 
 
 app.listen(3333);
